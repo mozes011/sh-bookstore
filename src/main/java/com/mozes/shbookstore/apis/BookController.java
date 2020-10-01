@@ -14,7 +14,12 @@ public class BookController {
     private BookService bookService;
 
     @PostMapping("/books/add")
-    public String addBook(@RequestBody List<Book> books){
+    public String addBook(@RequestBody Book book){
+        bookService.addBook(book);
+        return "book added";
+    }
+    @PostMapping("/books/add/bulk")
+    public String addBooks(@RequestBody List<Book> books){
         for (Book b:books
              ) {
             bookService.addBook(b);
@@ -24,8 +29,8 @@ public class BookController {
 
     @PostMapping("books/buy")
     public String buyBook(@RequestBody Book book){
-        Boolean result = bookService.removeBook(book);
-        String msg = "Book was " + (result ? "":"not " )+"successfully purchased!";
+        Book result = bookService.purchaseBook(book);
+        String msg = "Book was " + (result!=null ? "":"not " )+"successfully purchased!";
         return msg;
     }
 

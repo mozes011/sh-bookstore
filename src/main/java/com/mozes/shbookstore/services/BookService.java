@@ -1,59 +1,72 @@
 package com.mozes.shbookstore.services;
 
 import com.mozes.shbookstore.models.Book;
+import com.mozes.shbookstore.repositories.BookRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class BookService {
-    private ConcurrentHashMap<Book,Integer> inventory;
+
+    @Autowired
+    private BookRepository bookRepository;
 
     public BookService() {
-        inventory = new ConcurrentHashMap<>();
-    }
-
-    public BookService(ConcurrentHashMap <Book, Integer> inventory) {
-        this.inventory = inventory;
-    }
-
-    public void addBook(Book book) {
-        inventory.merge(book,1,(existValue,newValue)->existValue+1);
 
     }
 
-    public Integer getBookQuantity(Book book){
-        return inventory.getOrDefault(book,0);
-    }
-    public Boolean removeBook(Book book) {
-        AtomicReference<Boolean> result = new AtomicReference<>(true);
-        inventory.merge(book,0,(existValue,newValue)-> {
-            if(existValue - 1 >= 0){
-
-               return existValue-1;
-            }
-           else{
-               result.set(false);
-               return 0;
-           }
-
-        });
-
-        return result.get();
+    public BookService(BookRepository bookRepository) {
     }
 
-    public List<Book> getAllBooks() {
-        List<Book> availableBooks = new LinkedList<>();
-        for (Map.Entry<Book,Integer> entry: inventory.entrySet()) {
-            if(entry.getValue() > 0){
-                availableBooks.add(entry.getKey());
-            }
+    public synchronized void addBook(Book book) {
+        List<Book> requestedBooks = bookRepository.findByName(book.getName());
+        if(requestedBooks.isEmpty()){
+            bookRepository.save(book);
+        }
+        else{
+           Book requestedBook = requestedBooks.get(0);
+           requestedBook.setQuantity(requestedBook.getQuantity()+book.getQuantity());
+            bookRepository.save(requestedBook);
+        }
+    }
+
+    public  Integer getBookQuantity(Book book){
+        List<Book> requestedBooks = new LinkedList<>();
+        synchronized (this){
+            requestedBooks = bookRepository.findByName(book.getName());
         }
 
+        if(requestedBooks.isEmpty()) {
+            return 0;
+        }
+        else{
+            Book requestedBook = requestedBooks.get(0);
+            Integer quan = requestedBook.getQuantity();
+            return quan;
+        }
+    }
+    public synchronized Book purchaseBook(Book book) {
+        List<Book> requestedBooks = bookRepository.findByName(book.getName());
+        if (!requestedBooks.isEmpty()) {
+            Book requestedBook = requestedBooks.get(0);
+            Integer newQuantity = requestedBook.getQuantity() - book.getQuantity();
+            if (newQuantity >= 0) {
+                requestedBook.setQuantity(newQuantity);
+                bookRepository.save(requestedBook);
+                return requestedBook;
+            }
+        }
+        return null;
+    }
+
+    public  List<Book> getAllBooks() {
+        List<Book> availableBooks = new LinkedList<>();
+        synchronized (this) {
+            availableBooks = bookRepository.findByQuantityGreaterThan(0);
+        }
         return availableBooks;
     }
 }

@@ -27,24 +27,31 @@ class ShBookstoreApplicationTests {
 
 
 	@Test
+	void testSingleBookInsertion(){
+		Book testBook = new Book("The Old Man and The Sea" ,"SomeName");
+		bookService.addBook(testBook);
+		assertEquals(1 ,bookService.getAllBooks().size());
+		bookService.purchaseBook(testBook);
+	}
+
+	@Test
 	void testBookServiceAddConcurent(){
 		Book testBook = new Book("The Old Man and The Sea" ,"SomeName");
 		ThreadPoolExecutor executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
 		for (int i = 0; i < NUMBER_OF_ACTIONS; i++) {
 			final int tmp = i;
 			executorService.submit(() -> {
-
 				bookService.addBook(testBook);
-				System.out.println("Task Submitted"+tmp);
+				System.out.println("add action "+tmp);
 			});
 
 		}
 		try {
-			executorService.awaitTermination(5L, TimeUnit.SECONDS);
+			executorService.awaitTermination(10L, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-
+		System.out.println("quantity of books in add test "+bookService.getAllBooks().get(0).quantity);
 		assertEquals(NUMBER_OF_ACTIONS,bookService.getBookQuantity(testBook));
 
 
@@ -52,31 +59,30 @@ class ShBookstoreApplicationTests {
 
 	@Test
 	void testBookServiceRemoveConcurent(){
-		Book testBook = new Book("The Old Man and The Sea" ,"SomeName");
+		Book testBook = new Book("The bla" ,"SomeName");
 		for (int i = 0; i < NUMBER_OF_ACTIONS; i++) {
 			bookService.addBook(testBook);
 		}
 
-		bookService.removeBook(testBook);
-
+		bookService.purchaseBook(testBook); //remove one extra so counter of successful perchuse will off by 1
 		AtomicInteger countr= new AtomicInteger(0);
 		ThreadPoolExecutor executorService = (ThreadPoolExecutor) Executors.newFixedThreadPool(10);
 		for (int i = 0; i < NUMBER_OF_ACTIONS; i++) {
 			final int tmp=i;
 			executorService.submit(() -> {
-				if(bookService.removeBook(testBook)){
+				if(bookService.purchaseBook(testBook)!=null){
 					countr.incrementAndGet();
 				}
-				System.out.println("Task Submitted"+tmp);
+				System.out.println("perchuse action "+tmp);
 			});
 
 		}
 		try {
-			executorService.awaitTermination(5L, TimeUnit.SECONDS);
+			executorService.awaitTermination(15L, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		assertEquals(NUMBER_OF_ACTIONS-1,countr.get());
+		assertEquals(NUMBER_OF_ACTIONS - 1,countr.get());
 
 	}
 
